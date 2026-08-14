@@ -1,0 +1,8 @@
+[package]
+name = "terrarium-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+terrarium-core = { path = "../terrarium-core" }
+terrarium-agent = { path = "../terrarium-agent" }
