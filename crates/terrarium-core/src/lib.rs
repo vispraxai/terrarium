@@ -8,10 +8,10 @@ pub mod time;
 pub mod world;
 
 pub use agent::{Action, Observation};
-pub use event::{Event, EventKind};
+pub use event::{Event, EventKind, StateEffect, Visibility};
 pub use ids::*;
 pub use person::*;
-pub use replay::{BranchInfo, Run, Snapshot};
+pub use replay::{ActionRecord, BranchInfo, ObservationRecord, Run, RunMetadata, Snapshot};
 pub use simulation::Simulation;
 pub use time::{Duration, SimTime};
 pub use world::WorldState;

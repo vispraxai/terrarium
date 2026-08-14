@@ -1,4 +1,4 @@
-use crate::event::EventKind;
+use crate::event::{EventKind, StateEffect, Visibility};
 use crate::{Action, Event, EventId, Person, PersonId, SimTime};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -37,18 +37,21 @@ impl WorldState {
         self.people.insert(person.id, person);
     }
 
-    /// Emit an event whose default parent is the previous event.
-    /// This preserves the original Phase 0 behavior.
     pub fn emit(&mut self, kind: EventKind) -> EventId {
         let parent = self.events.last().map(|e| e.id);
-        self.emit_with_parent(parent, kind)
+        self.emit_with_details(parent, kind, Vec::new(), Visibility::default())
     }
 
-    /// Emit an event with an explicitly selected causal parent.
-    pub fn emit_with_parent(
+    pub fn emit_with_parent(&mut self, causal_parent: Option<EventId>, kind: EventKind) -> EventId {
+        self.emit_with_details(causal_parent, kind, Vec::new(), Visibility::default())
+    }
+
+    pub fn emit_with_details(
         &mut self,
         causal_parent: Option<EventId>,
         kind: EventKind,
+        effects: Vec<StateEffect>,
+        visibility: Visibility,
     ) -> EventId {
         let id = EventId(self.next_event_id);
         self.next_event_id += 1;
@@ -57,6 +60,8 @@ impl WorldState {
             timestamp: self.time,
             causal_parent,
             kind,
+            effects,
+            visibility,
         });
         id
     }
@@ -74,19 +79,28 @@ impl WorldState {
         &mut self,
         actor: PersonId,
         action: &Action,
-    ) -> Result<(), WorldError> {
+    ) -> Result<EventId, WorldError> {
         if !self.people.contains_key(&actor) {
             return Err(WorldError::UnknownPerson(actor));
         }
+        let kind = EventKind::AgentAction {
+            actor,
+            action: action.clone(),
+        };
+        let parent = self.events.last().map(|e| e.id);
         match action {
             Action::Say(text) => {
-                self.emit(EventKind::Custom {
-                    description: format!("{} said: {}", self.people[&actor].identity.name, text),
-                });
+                Ok(self.emit_with_details(
+                    parent,
+                    kind,
+                    vec![StateEffect::Custom {
+                        description: format!("{} said: {}", self.people[&actor].identity.name, text),
+                    }],
+                    Visibility::Public,
+                ))
             }
-            Action::DoNothing => {}
+            Action::DoNothing => Ok(self.emit_with_details(parent, kind, Vec::new(), Visibility::Latent)),
         }
-        Ok(())
     }
 }
 

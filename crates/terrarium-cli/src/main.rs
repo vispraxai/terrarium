@@ -66,11 +66,16 @@ fn main() {
         timestamp: sim.time(),
         text: "Bob says: I thought Alice was going to be home by now.".into(),
     };
-    let action = vixir.observe(observation);
+    let action = vixir.observe(observation.clone());
+    run.record_observation(sim.time(), Some(PersonId(2)), observation, [broken_event]);
+    run.record_action(sim.time(), PersonId(2), action.clone(), [broken_event]);
+    let action_event = sim.world.apply_agent_action(PersonId(2), &action).expect("known actor");
+    run.sync_events(&sim.world);
+    println!("AgentAction event #{:?}", action_event);
     println!("Vixir action: {:?}", action);
 
     println!("\nEvent stream:");
-    for event in &sim.world.events {
+    for event in run.events() {
         println!("  #{:?} @ {:?} {:?}", event.id, event.timestamp, event.kind);
     }
 
@@ -96,6 +101,11 @@ fn main() {
         sim.time(), broken_info.id, kept_info.id
     );
     println!("  both are independent clones: {}", broken_world.time() == kept_world.time());
+    let counterfactual = run.fork(
+        run.latest().id,
+        kept_info.clone(),
+    ).expect("latest snapshot can be forked");
+    println!("  replay fork contains {} events and {} observations", counterfactual.events.len(), counterfactual.observations.len());
 
     let json = run.to_json_pretty().expect("run should serialize");
     std::fs::write("terrarium-run.json", json).expect("write terrarium-run.json");

@@ -1,4 +1,4 @@
-use crate::event::EventKind;
+use crate::event::{EventKind, StateEffect, Visibility};
 use crate::replay::{BranchInfo, Run};
 use crate::{Duration, EventId, Person, PersonId, SimTime, WorldState};
 use serde::{Deserialize, Serialize};
@@ -33,20 +33,44 @@ impl Simulation {
         content: impl Into<String>,
     ) -> EventId {
         let content = content.into();
+        let mut effects = Vec::new();
+        let memory_description = format!("{} broke a promise: {}", from.0, content);
         if let Some(person) = self.world.people.get_mut(&to) {
-            person.remember(
-                self.world.time,
-                format!("{} broke a promise: {}", from.0, content),
-                0.8,
-            );
+            person.remember(self.world.time, memory_description.clone(), 0.8);
+            effects.push(StateEffect::MemoryAdded {
+                person: to,
+                description: memory_description,
+                salience: 0.8,
+            });
             if let Some(rel) = person.relationships.get_mut(&from) {
+                let before_trust = rel.trust;
+                let before_conflict = rel.conflict;
+                let before_uncertainty = rel.uncertainty;
                 rel.trust -= 0.15;
                 rel.conflict += 0.10;
                 rel.uncertainty += 0.10;
                 rel.clamp();
+                effects.push(StateEffect::RelationshipFieldChanged {
+                    person: to, other: from, field: "trust".into(),
+                    before: before_trust, after: rel.trust,
+                });
+                effects.push(StateEffect::RelationshipFieldChanged {
+                    person: to, other: from, field: "conflict".into(),
+                    before: before_conflict, after: rel.conflict,
+                });
+                effects.push(StateEffect::RelationshipFieldChanged {
+                    person: to, other: from, field: "uncertainty".into(),
+                    before: before_uncertainty, after: rel.uncertainty,
+                });
             }
         }
-        self.world.emit(EventKind::PromiseBroken { from, to, content })
+        let parent = self.world.events.last().map(|e| e.id);
+        self.world.emit_with_details(
+            parent,
+            EventKind::PromiseBroken { from, to, content },
+            effects,
+            Visibility::Public,
+        )
     }
 
     pub fn time(&self) -> SimTime { self.world.time }
