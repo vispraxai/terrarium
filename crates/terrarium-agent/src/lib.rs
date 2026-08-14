@@ -1,5 +1,5 @@
 use terrarium_core::agent::{Agent, Observation};
-use terrarium_core::{Action};
+use terrarium_core::Action;
 
 /// Minimal deterministic agent used to prove the Terrarium loop.
 /// Replace this with the Vixir adapter later.

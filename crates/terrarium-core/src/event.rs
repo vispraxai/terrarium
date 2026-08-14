@@ -17,6 +17,8 @@ pub enum EventKind {
 pub struct Event {
     pub id: EventId,
     pub timestamp: SimTime,
+    /// Kept as a single optional parent for Phase 0 compatibility.
+    /// Use `emit_with_parent` to make causal intent explicit.
     pub causal_parent: Option<EventId>,
     pub kind: EventKind,
 }

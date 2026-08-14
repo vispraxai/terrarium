@@ -3,15 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Identity {
-    pub name: String,
-}
+pub struct Identity { pub name: String }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Goal {
-    pub description: String,
-    pub importance: f32,
-}
+pub struct Goal { pub description: String, pub importance: f32 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Belief {
@@ -21,9 +16,7 @@ pub struct Belief {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct BeliefState {
-    pub beliefs: Vec<Belief>,
-}
+pub struct BeliefState { pub beliefs: Vec<Belief> }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Memory {
@@ -33,9 +26,7 @@ pub struct Memory {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct MemoryStore {
-    pub memories: Vec<Memory>,
-}
+pub struct MemoryStore { pub memories: Vec<Memory> }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RelationshipState {
@@ -47,7 +38,6 @@ pub struct RelationshipState {
     pub uncertainty: f32,
     pub shared_history: Vec<String>,
 }
-
 impl RelationshipState {
     pub fn clamp(&mut self) {
         self.trust = self.trust.clamp(0.0, 1.0);
@@ -60,32 +50,18 @@ impl RelationshipState {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Expectations {
-    pub expectations: Vec<Belief>,
-}
+pub struct Expectations { pub expectations: Vec<Belief> }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AffectiveState {
-    pub valence: f32,
-    pub arousal: f32,
-}
-
+pub struct AffectiveState { pub valence: f32, pub arousal: f32 }
 impl Default for AffectiveState {
-    fn default() -> Self {
-        Self { valence: 0.0, arousal: 0.0 }
-    }
+    fn default() -> Self { Self { valence: 0.0, arousal: 0.0 } }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SelfModel {
-    pub capability_estimate: f32,
-    pub uncertainty: f32,
-}
-
+pub struct SelfModel { pub capability_estimate: f32, pub uncertainty: f32 }
 impl Default for SelfModel {
-    fn default() -> Self {
-        Self { capability_estimate: 0.5, uncertainty: 0.5 }
-    }
+    fn default() -> Self { Self { capability_estimate: 0.5, uncertainty: 0.5 } }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,7 +76,6 @@ pub struct Person {
     pub relationships: HashMap<PersonId, RelationshipState>,
     pub self_model: SelfModel,
 }
-
 impl Person {
     pub fn new(id: PersonId, name: impl Into<String>) -> Self {
         Self {
@@ -115,7 +90,6 @@ impl Person {
             self_model: SelfModel::default(),
         }
     }
-
     pub fn remember(&mut self, timestamp: SimTime, description: impl Into<String>, salience: f32) {
         self.memories.memories.push(Memory {
             timestamp,

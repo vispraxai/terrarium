@@ -18,14 +18,8 @@ impl Duration {
 
 impl Add<Duration> for SimTime {
     type Output = SimTime;
-
-    fn add(self, rhs: Duration) -> Self::Output {
-        SimTime(self.0 + rhs.0)
-    }
+    fn add(self, rhs: Duration) -> Self::Output { SimTime(self.0 + rhs.0) }
 }
-
 impl AddAssign<Duration> for SimTime {
-    fn add_assign(&mut self, rhs: Duration) {
-        self.0 += rhs.0;
-    }
+    fn add_assign(&mut self, rhs: Duration) { self.0 += rhs.0; }
 }

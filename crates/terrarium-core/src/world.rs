@@ -1,15 +1,11 @@
 use crate::event::EventKind;
-use crate::{
-    Action, Event, EventId, Person, PersonId, SimTime,
-};
+use crate::{Action, Event, EventId, Person, PersonId, SimTime};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Location {
-    pub name: String,
-}
+pub struct Location { pub name: String }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorldState {
@@ -41,18 +37,37 @@ impl WorldState {
         self.people.insert(person.id, person);
     }
 
+    /// Emit an event whose default parent is the previous event.
+    /// This preserves the original Phase 0 behavior.
     pub fn emit(&mut self, kind: EventKind) -> EventId {
+        let parent = self.events.last().map(|e| e.id);
+        self.emit_with_parent(parent, kind)
+    }
+
+    /// Emit an event with an explicitly selected causal parent.
+    pub fn emit_with_parent(
+        &mut self,
+        causal_parent: Option<EventId>,
+        kind: EventKind,
+    ) -> EventId {
         let id = EventId(self.next_event_id);
         self.next_event_id += 1;
-
-        let parent = self.events.last().map(|e| e.id);
         self.events.push(Event {
             id,
             timestamp: self.time,
-            causal_parent: parent,
+            causal_parent,
             kind,
         });
         id
+    }
+
+    pub fn event(&self, id: EventId) -> Option<&Event> {
+        self.events.iter().find(|event| event.id == id)
+    }
+
+    pub fn events_since(&self, cursor: usize) -> &[Event] {
+        let cursor = cursor.min(self.events.len());
+        &self.events[cursor..]
     }
 
     pub fn apply_agent_action(
@@ -63,7 +78,6 @@ impl WorldState {
         if !self.people.contains_key(&actor) {
             return Err(WorldError::UnknownPerson(actor));
         }
-
         match action {
             Action::Say(text) => {
                 self.emit(EventKind::Custom {
@@ -72,13 +86,10 @@ impl WorldState {
             }
             Action::DoNothing => {}
         }
-
         Ok(())
     }
 }
 
 impl Default for WorldState {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }

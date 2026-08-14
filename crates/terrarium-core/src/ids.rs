@@ -13,3 +13,4 @@ id_type!(PersonId);
 id_type!(LocationId);
 id_type!(ObjectId);
 id_type!(EventId);
+id_type!(SnapshotId);
