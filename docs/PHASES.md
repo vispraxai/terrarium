@@ -530,3 +530,27 @@ Sim-to-real calibration
 ```
 
 The early phases are not throwaway prototypes. They establish the same world-state, causal, observation, action, and evaluation abstractions that later phases should continue to use.
+
+## Pre-Observatory Completion Gate
+
+Before building the graphical Observatory, the core should satisfy:
+
+```text
+[✓] semantic events
+[✓] explicit state effects
+[✓] latent/public visibility
+[✓] deterministic snapshots
+[✓] replay
+[✓] exact-cursor branching
+[✓] reproducibility checks for RNG checkpoints
+[✓] observations
+[✓] agent actions
+[✓] unified chronological trace
+[✓] versioned JSON run artifact
+[✓] run structural validation
+[✓] typed experiment instantiation
+[✓] deterministic duration parsing
+```
+
+The next layer is therefore presentation and analysis rather than another
+simulation-history rewrite.

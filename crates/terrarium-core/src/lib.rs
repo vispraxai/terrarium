@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod effect;
+pub mod experiment;
 pub mod event;
 pub mod ids;
 pub mod person;
@@ -8,12 +9,13 @@ pub mod simulation;
 pub mod time;
 pub mod world;
 
-pub use agent::{Action, AgentAction, Observation};
+pub use agent::{Action, Agent, AgentAction, Observation};
 pub use effect::StateEffect;
-pub use event::{Event, EventKind};
+pub use experiment::{Experiment, ExperimentPerson, Intervention, RelationshipSetup};
+pub use event::{Event, EventKind, Visibility};
 pub use ids::*;
 pub use person::*;
-pub use replay::{BranchInfo, Run, Snapshot};
+pub use replay::{ActionRecord, BranchInfo, ObservationRecord, Run, RunArtifact, Snapshot, TraceEntry};
 pub use simulation::Simulation;
 pub use time::{Duration, SimTime};
 pub use world::WorldState;

@@ -638,3 +638,48 @@ terrarium/
     ├── development/
     └── sim_to_real/
 ```
+
+## 10. Durable Run Boundary
+
+The simulation core deliberately has two representations of history:
+
+```text
+canonical Run
+├── events[]
+├── observations[]
+├── actions[]
+└── snapshots[]
+
+read model
+└── timeline[]
+```
+
+The canonical representation preserves semantics and independent data domains.
+`Run::timeline()` is a denormalized chronological view for inspection. The
+versioned `RunArtifact` contains both, so Observatory does not need to recreate
+this joining logic.
+
+## 11. Reproducibility Boundary
+
+A snapshot stores the world, all relevant cursors, and deterministic RNG state.
+A counterfactual branch is only considered reproducible when an RNG checkpoint
+exists at the exact fork cursor. `Simulation::try_branch()` therefore rejects
+an under-specified fork rather than silently producing a different stochastic
+trajectory.
+
+This is an intentional scientific invariant, not merely an implementation
+convenience.
+
+## 12. Validation
+
+Before a run is exported, `Run::validate()` checks structural invariants:
+
+- event ids are unique and increasing;
+- causal parents refer to earlier recorded events;
+- snapshot cursors are in range;
+- snapshot world/event cursors agree;
+- observations and actions do not reference missing events;
+- the exported timeline is chronological.
+
+The validator does not claim that the psychological model is scientifically
+correct. It ensures the artifact is structurally coherent enough to inspect.

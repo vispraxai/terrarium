@@ -1,21 +1,40 @@
 //! Explicit state changes produced by simulation events.
 //!
-//! An `Event` answers "what happened?" while a `StateEffect` answers
-//! "what changed because it happened?" Keeping these separate is the key
-//! to making Terrarium history replayable and inspectable.
+//! An `Event` is history. A `StateEffect` is the deterministic state delta
+//! needed to reproduce that history.  Important state mutations should pass
+//! through this vocabulary instead of being hidden inside arbitrary methods.
 
 use crate::{PersonId, SimTime};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum StateEffect {
-    PersonEnteredRoom { person: PersonId, room: String },
-    PersonLeftRoom { person: PersonId, room: String },
+    PersonEnteredRoom {
+        person: PersonId,
+        room: String,
+    },
+    PersonLeftRoom {
+        person: PersonId,
+        room: String,
+    },
     MemoryAdded {
         person: PersonId,
         timestamp: SimTime,
         description: String,
         salience: f32,
+    },
+    BeliefChanged {
+        person: PersonId,
+        proposition: String,
+        old_confidence: f32,
+        new_confidence: f32,
+    },
+    AffectChanged {
+        person: PersonId,
+        old_valence: f32,
+        new_valence: f32,
+        old_arousal: f32,
+        new_arousal: f32,
     },
     RelationshipChanged {
         observer: PersonId,

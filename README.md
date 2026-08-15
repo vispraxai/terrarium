@@ -145,3 +145,153 @@ Rust Terrarium
 ```
 
 The UI will then be able to show the event stream against time, latent truth vs observations, state deltas, causal chains, replay position, and counterfactual branches.
+
+
+## Pre-Observatory Core
+
+The current implementation is moving toward a complete, replayable simulation
+trace before adding a graphical Observatory.
+
+The core loop is:
+
+```text
+latent world
+    ↓
+semantic event
+    ↓
+explicit state effects
+    ↓
+world state
+    ↓
+observation boundary
+    ↓
+agent
+    ↓
+action
+    ↓
+world event
+```
+
+### Event history
+
+Every event contains:
+
+- simulation timestamp
+- causal parent ids
+- semantic event kind
+- visibility
+- explicit state effects
+
+An effect is the deterministic state delta needed to reproduce a transition.
+
+### Observations and actions
+
+Observations are deliberately separated from latent events. An event can be
+`Public`, `Latent`, or visible only to selected people.
+
+`Simulation::step_agent()` demonstrates the complete Phase 0 loop:
+
+```text
+observation
+    → agent
+    → action
+    → action event
+```
+
+The `Run` records observations and actions alongside world events.
+
+### Deterministic replay
+
+Snapshots contain:
+
+- world state
+- event cursor
+- observation cursor
+- action cursor
+- deterministic RNG state
+
+Replay begins at the nearest snapshot and applies explicit effects in order.
+
+### Counterfactual branches
+
+A branch is created at an exact event cursor. The child world is reconstructed
+at that cursor rather than cloning the parent's current state. This avoids the
+subtle bug where a branch's history is truncated but its world still contains
+future state.
+
+### Deterministic randomness
+
+`Simulation::with_seed(seed)` establishes reproducible pseudo-random state.
+This is simulation randomness, not cryptographic randomness.
+
+### Declarative experiments
+
+`crates/terrarium-core/src/experiment.rs` defines the first typed experiment
+schema. `experiments/promise.yaml` remains the human-readable seed for the
+future declarative experiment loader.
+
+### Source-reading order
+
+If the code feels increasingly complicated, read it in this order:
+
+1. `event.rs` — what can happen and who can see it.
+2. `effect.rs` — what can change.
+3. `person.rs` — persistent psychological state.
+4. `world.rs` — where effects become authoritative state.
+5. `replay.rs` — how history is stored and reconstructed.
+6. `simulation.rs` — how time, scheduling, observations, and agents connect.
+7. `agent.rs` — the world/agent boundary.
+8. `experiment.rs` — how experiments will eventually become declarative.
+
+The comments in these files explain the design decisions as well as the code.
+
+### Validation
+
+From the repository root:
+
+```bash
+cargo fmt --all -- --check
+cargo test --workspace
+cargo run -p terrarium-cli
+```
+
+The CLI writes `terrarium-run.json`, which is intended to become the first
+data contract consumed by Observatory.
+
+### Current limitations
+
+This is still Phase 0.
+
+The observation model is textual and event-based, the scheduler is simple, and
+the deterministic RNG is only plumbing for future stochastic dynamics. A full
+sensor model, richer causal graph traversal, developmental epochs, and physical
+environments remain later phases.
+
+### Core APIs added in this milestone
+
+- `Simulation::schedule_event()` and scheduled-event processing in `advance()`.
+- `Simulation::observe()` for a first event-based observation boundary.
+- `Simulation::step_agent()` for observation → agent → action → world-event closure.
+- `Simulation::with_seed()` and deterministic RNG state in snapshots.
+- `Simulation::enter_room()`, `leave_room()`, `set_belief()`, and `set_affect()` as explicit effect-producing mutations.
+- `Simulation::branch()` now reconstructs the child world at the fork cursor.
+
+## Stable run artifact
+
+`Run::to_json_pretty()` emits a versioned `RunArtifact` containing both the
+canonical run data and a chronological `timeline` read model. The Observatory
+can consume this artifact without linking against the Rust simulation crate.
+
+The canonical data remains normalized (`events`, `observations`, `actions`,
+and `snapshots`); `timeline` is intentionally denormalized for visualization.
+
+## Experiment API
+
+`Experiment::instantiate()` builds a deterministic initial world from a typed
+experiment definition. `Experiment::run_duration()` advances the declared
+simulation duration. Intervention semantics remain explicit rather than being
+silently inferred from a duration string.
+
+The YAML file under `experiments/` is still a human-readable seed. A parser for
+that YAML format is intentionally deferred until the schema stabilizes; the
+core API accepts the typed `Experiment` directly.
