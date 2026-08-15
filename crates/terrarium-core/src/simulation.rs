@@ -51,7 +51,11 @@ impl DeterministicRng {
     }
 
     fn set_state(&mut self, state: u64) {
-        self.state = if state == 0 { 0x9E3779B97F4A7C15 } else { state };
+        self.state = if state == 0 {
+            0x9E3779B97F4A7C15
+        } else {
+            state
+        };
     }
 }
 
@@ -111,11 +115,7 @@ impl Simulation {
         while let Some(index) = self.next_scheduled_index(target) {
             let scheduled = self.scheduled.remove(index);
             self.world.time = scheduled.timestamp;
-            self.emit_with_visibility(
-                scheduled.kind,
-                scheduled.effects,
-                scheduled.visibility,
-            );
+            self.emit_with_visibility(scheduled.kind, scheduled.effects, scheduled.visibility);
         }
 
         self.world.time = target;
@@ -261,11 +261,7 @@ impl Simulation {
         let description = format!("{} broke a promise: {}", from.0, content);
 
         self.emit(
-            EventKind::PromiseBroken {
-                from,
-                to,
-                content,
-            },
+            EventKind::PromiseBroken { from, to, content },
             vec![
                 StateEffect::MemoryAdded {
                     person: to,
@@ -294,9 +290,7 @@ impl Simulation {
         effects: Vec<StateEffect>,
         visibility: Visibility,
     ) -> EventId {
-        let id = self
-            .world
-            .emit_with_visibility(kind, effects, visibility);
+        let id = self.world.emit_with_visibility(kind, effects, visibility);
         let event = self
             .world
             .events
@@ -377,9 +371,9 @@ impl Simulation {
         );
 
         let action = agent.observe(observation);
-        let event_id = self
-            .world
-            .apply_agent_action_with_parents(actor, &action, source_events.clone())?;
+        let event_id =
+            self.world
+                .apply_agent_action_with_parents(actor, &action, source_events.clone())?;
         let event = self
             .world
             .events

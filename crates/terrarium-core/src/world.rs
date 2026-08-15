@@ -145,7 +145,12 @@ impl WorldState {
         effects: Vec<StateEffect>,
         visibility: Visibility,
     ) -> EventId {
-        let parents = self.events.last().map(|event| event.id).into_iter().collect();
+        let parents = self
+            .events
+            .last()
+            .map(|event| event.id)
+            .into_iter()
+            .collect();
         self.emit_with_parents(kind, effects, visibility, parents)
     }
 

@@ -4,8 +4,8 @@
 //! "what changed because it happened?".  Keeping those concepts separate is
 //! what makes replay, debugging, and the future Observatory possible.
 
-use crate::{EventId, PersonId, SimTime};
 use crate::effect::StateEffect;
+use crate::{EventId, PersonId, SimTime};
 use serde::{Deserialize, Serialize};
 
 /// Controls which agents are allowed to receive an event through the
@@ -29,15 +29,40 @@ impl Visibility {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum EventKind {
-    PersonEnteredRoom { person: PersonId, room: String },
-    PersonLeftRoom { person: PersonId, room: String },
-    PromiseMade { from: PersonId, to: PersonId, content: String },
-    PromiseBroken { from: PersonId, to: PersonId, content: String },
-    MessageSent { from: PersonId, to: PersonId, content: String },
-    AgentAction { actor: PersonId, description: String },
+    PersonEnteredRoom {
+        person: PersonId,
+        room: String,
+    },
+    PersonLeftRoom {
+        person: PersonId,
+        room: String,
+    },
+    PromiseMade {
+        from: PersonId,
+        to: PersonId,
+        content: String,
+    },
+    PromiseBroken {
+        from: PersonId,
+        to: PersonId,
+        content: String,
+    },
+    MessageSent {
+        from: PersonId,
+        to: PersonId,
+        content: String,
+    },
+    AgentAction {
+        actor: PersonId,
+        description: String,
+    },
     /// A meaningful affective transition. Exact old/new values live in the effect.
-    AffectChanged { person: PersonId },
-    Custom { description: String },
+    AffectChanged {
+        person: PersonId,
+    },
+    Custom {
+        description: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

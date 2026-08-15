@@ -123,7 +123,8 @@ impl Run {
 
         while let Some(id) = current.pop() {
             if !visited.insert(id) {
-                continue;                                    }
+                continue;
+            }
 
             if let Some(event) = self.event(id) {
                 for parent in &event.causal_parents {
@@ -211,9 +212,8 @@ impl Run {
     /// observations follow because they are derived from that world; actions
     /// follow observations because they are decisions made from them.
     pub fn timeline(&self) -> Vec<TraceEntry> {
-        let mut entries = Vec::with_capacity(
-            self.events.len() + self.observations.len() + self.actions.len(),
-        );
+        let mut entries =
+            Vec::with_capacity(self.events.len() + self.observations.len() + self.actions.len());
 
         entries.extend(self.events.iter().cloned().map(TraceEntry::Event));
         entries.extend(
@@ -326,7 +326,12 @@ impl Run {
         child.observations = self
             .observations
             .iter()
-            .filter(|record| record.source_events.iter().all(|id| retained_ids.contains(id)))
+            .filter(|record| {
+                record
+                    .source_events
+                    .iter()
+                    .all(|id| retained_ids.contains(id))
+            })
             .cloned()
             .collect();
         child.actions = self
@@ -374,7 +379,10 @@ impl Run {
             previous_id = Some(event.id);
             for parent in &event.causal_parents {
                 if !ids.contains(parent) {
-                    return Err(format!("event {:?} has dangling parent {:?}", event.id, parent));
+                    return Err(format!(
+                        "event {:?} has dangling parent {:?}",
+                        event.id, parent
+                    ));
                 }
             }
         }
@@ -407,7 +415,10 @@ impl Run {
             }
             if let Some(event_id) = action.event_id {
                 if !ids.contains(&event_id) {
-                    return Err(format!("action references unknown result event {:?}", event_id));
+                    return Err(format!(
+                        "action references unknown result event {:?}",
+                        event_id
+                    ));
                 }
             }
         }

@@ -4,9 +4,7 @@
 //! record a complete trace that Observatory can later consume.
 
 use terrarium_agent::EchoAgent;
-use terrarium_core::{
-    Duration, Person, PersonId, RelationshipState, Simulation,
-};
+use terrarium_core::{Duration, Person, PersonId, RelationshipState, Simulation};
 
 fn main() {
     let mut sim = Simulation::with_seed(42);
@@ -42,8 +40,7 @@ fn main() {
     println!("17:00 — Alice leaves work.");
     sim.checkpoint();
 
-    let promise_event =
-        sim.promise_made(alice.id, PersonId(2), "I'll be home at 18:00");
+    let promise_event = sim.promise_made(alice.id, PersonId(2), "I'll be home at 18:00");
     println!("17:00 — PromiseMade event #{promise_event:?}");
     sim.checkpoint();
 
@@ -54,11 +51,7 @@ fn main() {
     sim.advance(Duration::minutes(30));
     println!("18:30 — Alice has not arrived.");
 
-    let broken_event = sim.promise_broken(
-        alice.id,
-        PersonId(2),
-        "I'll be home at 18:00",
-    );
+    let broken_event = sim.promise_broken(alice.id, PersonId(2), "I'll be home at 18:00");
     println!("18:30 — PromiseBroken event #{broken_event:?}");
     sim.checkpoint();
 
@@ -67,17 +60,13 @@ fn main() {
 
     println!(
         "Bob latent state: trust={:0.2}, conflict={:0.2}, uncertainty={:0.2}",
-        relationship.trust,
-        relationship.conflict,
-        relationship.uncertainty
+        relationship.trust, relationship.conflict, relationship.uncertainty
     );
 
     // The agent never receives `WorldState`. It receives an observation
     // generated through the observation boundary.
     let mut vixir = EchoAgent;
-    let action = sim
-        .step_agent(PersonId(2), &mut vixir)
-        .expect("Bob exists");
+    let action = sim.step_agent(PersonId(2), &mut vixir).expect("Bob exists");
 
     println!("Vixir action: {action:?}");
 
@@ -87,9 +76,12 @@ fn main() {
     }
 
     println!("\nReplay:");
-    for time in [sim.run.events.first().map(|e| e.timestamp), Some(sim.time())]
-        .into_iter()
-        .flatten()
+    for time in [
+        sim.run.events.first().map(|e| e.timestamp),
+        Some(sim.time()),
+    ]
+    .into_iter()
+    .flatten()
     {
         if let Some(world) = sim.run.at(time) {
             println!(
@@ -103,10 +95,7 @@ fn main() {
 
     println!("\nCausal chain for PromiseBroken:");
     for event in sim.run.causal_chain(broken_event) {
-        println!(
-            "  #{:?} @ {:?} {:?}",
-            event.id, event.timestamp, event.kind
-        );
+        println!("  #{:?} @ {:?} {:?}", event.id, event.timestamp, event.kind);
     }
 
     // Branch after the PromiseMade event. The child world is reconstructed at
@@ -121,13 +110,11 @@ fn main() {
     println!("  child time: {:?}", counterfactual.time());
     println!("  child events: {}", counterfactual.run.events.len());
 
-    sim.run.validate().expect("run invariants must hold before export");
-    let json = sim
-        .run
-        .to_json_pretty()
-        .expect("run should serialize");
-    std::fs::write("terrarium-run.json", json)
-        .expect("write terrarium-run.json");
+    sim.run
+        .validate()
+        .expect("run invariants must hold before export");
+    let json = sim.run.to_json_pretty().expect("run should serialize");
+    std::fs::write("terrarium-run.json", json).expect("write terrarium-run.json");
 
     println!("\nWrote terrarium-run.json");
 }
