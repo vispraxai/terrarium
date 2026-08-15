@@ -1,164 +1,127 @@
-use crate::{Action, Event, EventId, Observation, PersonId, SimTime, SnapshotId, WorldState};
+//! Persistent run history, snapshots, replay, and counterfactual branches.
+//!
+//! A `Simulation` is the thing that evolves. A `Run` is the historical record
+//! of that evolution. Keeping those concepts separate prevents the future UI
+//! from becoming coupled to simulation internals.
+
+use crate::{Event, EventId, SimTime, WorldState};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Snapshot {
-    pub id: SnapshotId,
     pub time: SimTime,
+    /// Cursors are more precise than timestamps: two events may happen at the
+    /// same simulated second, but they still have a definite order.
     pub event_cursor: usize,
-    pub observation_cursor: usize,
-    pub action_cursor: usize,
-    pub reason: String,
     pub world: WorldState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BranchInfo {
-    pub id: u64,
-    pub parent_branch_id: Option<u64>,
-    pub fork_time: SimTime,
+    pub branch_id: String,
+    pub parent_branch_id: Option<String>,
     pub fork_event: Option<EventId>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ObservationRecord {
-    pub id: u64,
-    pub timestamp: SimTime,
-    pub observer: Option<PersonId>,
-    pub observation: Observation,
-    pub caused_by: Vec<EventId>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ActionRecord {
-    pub id: u64,
-    pub timestamp: SimTime,
-    pub actor: PersonId,
-    pub action: Action,
-    pub caused_by: Vec<EventId>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RunMetadata {
-    pub run_id: u64,
-    pub seed: Option<u64>,
+    pub fork_time: Option<SimTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Run {
-    pub metadata: RunMetadata,
-    pub snapshots: Vec<Snapshot>,
-    pub events: Vec<Event>,
-    pub observations: Vec<ObservationRecord>,
-    pub actions: Vec<ActionRecord>,
     pub branch: BranchInfo,
+    pub events: Vec<Event>,
+    pub snapshots: Vec<Snapshot>,
 }
 
 impl Run {
-    pub fn new(initial: &WorldState, branch: BranchInfo) -> Self {
-        let run_id = branch.id;
-        Self::new_with_metadata(initial, branch, RunMetadata { run_id, seed: None })
-    }
-
-    pub fn new_with_metadata(initial: &WorldState, branch: BranchInfo, metadata: RunMetadata) -> Self {
+    pub fn new(branch_id: impl Into<String>) -> Self {
         Self {
-            metadata,
-            snapshots: vec![Snapshot {
-                id: SnapshotId(0),
-                time: initial.time,
-                event_cursor: initial.events.len(),
-                observation_cursor: 0,
-                action_cursor: 0,
-                reason: "initial".into(),
-                world: initial.clone(),
-            }],
-            events: initial.events.clone(),
-            observations: Vec::new(),
-            actions: Vec::new(),
-            branch,
+            branch: BranchInfo {
+                branch_id: branch_id.into(),
+                parent_branch_id: None,
+                fork_event: None,
+                fork_time: None,
+            },
+            events: Vec::new(),
+            snapshots: Vec::new(),
         }
     }
 
-    pub fn sync_events(&mut self, world: &WorldState) {
-        let cursor = self.events.len().min(world.events.len());
-        self.events.extend_from_slice(&world.events[cursor..]);
+    pub fn record_event(&mut self, event: Event) {
+        self.events.push(event);
     }
 
-    pub fn capture(&mut self, world: &WorldState, reason: impl Into<String>) -> SnapshotId {
-        self.sync_events(world);
-        let id = SnapshotId(self.snapshots.len() as u64);
+    pub fn capture(&mut self, world: &WorldState) {
         self.snapshots.push(Snapshot {
-            id,
             time: world.time,
-            event_cursor: world.events.len(),
-            observation_cursor: self.observations.len(),
-            action_cursor: self.actions.len(),
-            reason: reason.into(),
+            event_cursor: self.events.len(),
             world: world.clone(),
         });
-        id
     }
 
-    pub fn capture_if_due(&mut self, world: &WorldState, interval_seconds: u64, reason: impl Into<String>) -> Option<SnapshotId> {
-        let elapsed = world.time.0.saturating_sub(self.latest().time.0);
-        if elapsed >= interval_seconds { Some(self.capture(world, reason)) } else { None }
+    pub fn event(&self, id: EventId) -> Option<&Event> {
+        self.events.iter().find(|event| event.id == id)
     }
 
-    pub fn latest(&self) -> &Snapshot {
-        self.snapshots.last().expect("Run always contains initial snapshot")
-    }
-
-    pub fn at(&self, time: SimTime) -> Option<&WorldState> {
-        self.snapshots.iter().rev().find(|s| s.time <= time).map(|s| &s.world)
-    }
-
-    pub fn snapshot(&self, id: SnapshotId) -> Option<&Snapshot> {
-        self.snapshots.iter().find(|s| s.id == id)
-    }
-
-    pub fn event(&self, id: EventId) -> Option<&Event> { self.events.iter().find(|e| e.id == id) }
-    pub fn events(&self) -> impl Iterator<Item = &Event> { self.events.iter() }
-
-    pub fn events_between(&self, start: SimTime, end: SimTime) -> impl Iterator<Item = &Event> {
-        self.events.iter().filter(move |e| e.timestamp >= start && e.timestamp <= end)
-    }
-
-    pub fn record_observation(&mut self, timestamp: SimTime, observer: Option<PersonId>, observation: Observation, caused_by: impl IntoIterator<Item = EventId>) -> u64 {
-        let id = self.observations.len() as u64;
-        self.observations.push(ObservationRecord { id, timestamp, observer, observation, caused_by: caused_by.into_iter().collect() });
-        id
-    }
-
-    pub fn record_action(&mut self, timestamp: SimTime, actor: PersonId, action: Action, caused_by: impl IntoIterator<Item = EventId>) -> u64 {
-        let id = self.actions.len() as u64;
-        self.actions.push(ActionRecord { id, timestamp, actor, action, caused_by: caused_by.into_iter().collect() });
-        id
-    }
-
-    pub fn causal_chain(&self, event_id: EventId) -> Vec<&Event> {
+    /// Return the causal ancestry from oldest parent to the selected event.
+    ///
+    /// Phase 0 currently follows the first parent. The representation already
+    /// supports multiple parents, so the traversal can become a graph walk
+    /// when richer causal inference is introduced.
+    pub fn causal_chain(&self, id: EventId) -> Vec<&Event> {
         let mut chain = Vec::new();
-        let mut current = Some(event_id);
+        let mut current = Some(id);
         while let Some(id) = current {
             let Some(event) = self.event(id) else { break };
-            current = event.causal_parent;
+            current = event.causal_parents.first().copied();
             chain.push(event);
         }
         chain.reverse();
         chain
     }
 
-    pub fn fork(&self, snapshot_id: SnapshotId, branch: BranchInfo) -> Option<Self> {
-        let index = self.snapshots.iter().position(|s| s.id == snapshot_id)?;
-        let snapshot = &self.snapshots[index];
-        Some(Self {
-            metadata: RunMetadata { run_id: branch.id, seed: self.metadata.seed },
-            snapshots: self.snapshots[..=index].to_vec(),
-            events: self.events[..snapshot.event_cursor.min(self.events.len())].to_vec(),
-            observations: self.observations[..snapshot.observation_cursor.min(self.observations.len())].to_vec(),
-            actions: self.actions[..snapshot.action_cursor.min(self.actions.len())].to_vec(),
-            branch,
-        })
+    /// Reconstruct the world at a requested simulation time.
+    ///
+    /// We start from the latest checkpoint at or before the target and then
+    /// apply recorded effects. This makes replay deterministic and avoids
+    /// rerunning the whole simulation from time zero.
+    pub fn replay_to(&self, time: SimTime) -> Option<WorldState> {
+        let snapshot = self
+            .snapshots
+            .iter()
+            .filter(|snapshot| snapshot.time <= time)
+            .max_by_key(|snapshot| snapshot.event_cursor)?;
+
+        let mut world = snapshot.world.clone();
+        for event in self.events.iter().skip(snapshot.event_cursor) {
+            if event.timestamp > time {
+                break;
+            }
+            for effect in &event.effects {
+                world.apply_effect(effect);
+            }
+        }
+        world.time = time;
+        Some(world)
     }
 
-    pub fn to_json_pretty(&self) -> Result<String, serde_json::Error> { serde_json::to_string_pretty(self) }
+    /// Fork at an exact event position, not merely a timestamp.
+    pub fn branch(&self, branch_id: impl Into<String>, event_cursor: usize) -> Self {
+        let cursor = event_cursor.min(self.events.len());
+        let fork_event = cursor.checked_sub(1).and_then(|i| self.events.get(i));
+
+        Self {
+            branch: BranchInfo {
+                branch_id: branch_id.into(),
+                parent_branch_id: Some(self.branch.branch_id.clone()),
+                fork_event: fork_event.map(|event| event.id),
+                fork_time: fork_event.map(|event| event.timestamp),
+            },
+            events: self.events[..cursor].to_vec(),
+            snapshots: self
+                .snapshots
+                .iter()
+                .filter(|snapshot| snapshot.event_cursor <= cursor)
+                .cloned()
+                .collect(),
+        }
+    }
 }
